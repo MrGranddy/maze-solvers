@@ -10,6 +10,8 @@ from PIL import Image
 # 0: empty cell
 # 1: wall
 # 2: visited (used in generation)
+# 3: exitable
+# 4: start
 
 
 def _create_empty_maze(width: int, height: int) -> List[List[int]]:
@@ -90,6 +92,32 @@ def _get_unvisited_neighbours(
     return valid_neig_coords
 
 
+def _get_exitable_walls(
+    _maze: List[List[int]], width: int, height: int
+) -> List[Tuple[int, int]]:
+    """This function returns the exitable cells of a maze.
+
+    Args:
+        _maze (List[List[int]]): The maze in the form of [[Int]].
+        width (int): Number of empty cells in the horizontal direction.
+        height (int): Number of empty cells in the vertical direction.
+
+    Returns:
+        List[Tuple[int, int]]: The exitable cells of a maze.
+    """
+
+    exitable_coords = [(y, 0) for y in range(2 * height + 1) if _maze[y][1] == 0]
+    exitable_coords += [
+        (y, 2 * width) for y in range(2 * height + 1) if _maze[y][2 * width - 1] == 0
+    ]
+    exitable_coords += [(0, x) for x in range(2 * width + 1) if _maze[1][x] == 0]
+    exitable_coords += [
+        (2 * height, x) for x in range(2 * width + 1) if _maze[2 * height - 1][x] == 0
+    ]
+
+    return exitable_coords
+
+
 class MazeGenerator:
     """This class generates a maze in the form of [[Int]] with each call to the __call__"""
 
@@ -167,9 +195,22 @@ class MazeGenerator:
                 if _maze[i][j] == 2:
                     _maze[i][j] = 0
 
+        # Add START and EXIT markers
+        exitable_coords = _get_exitable_walls(_maze, self.width, self.height)
+        enter_coord, exit_coord = random.sample(exitable_coords, 2)
+        _maze[enter_coord[0]][enter_coord[1]] = 3  # Mark as START
+        _maze[exit_coord[0]][exit_coord[1]] = 4  # Mark as EXIT
+
         return _maze
 
     def __call__(self) -> str:
+        """This function generates a maze in the form of [[Int]] and returns it as a string.
+        '#' represents a wall, ' ' represents an empty cell, 'S' represents the start cell
+        and 'E' represents the exit cell.
+
+        Returns:
+            str: The maze in the form of a string.
+        """
 
         _maze: List[List[int]] = self._generate_maze()
 
@@ -181,6 +222,10 @@ class MazeGenerator:
                     row_str_list.append("#")
                 elif _cell == 0:
                     row_str_list.append(" ")
+                elif _cell == 3:
+                    row_str_list.append("S")
+                elif _cell == 4:
+                    row_str_list.append("E")
             maze_str_list.append("".join(row_str_list))
 
         return "\n".join(maze_str_list)
@@ -204,15 +249,19 @@ if __name__ == "__main__":
             (".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif")
         ):
 
-            grid: List[List[int]] = []
+            grid: List[List[List[int]]] = []
 
             for row in maze.splitlines():
-                grid_row: List[int] = []
+                grid_row: List[List[int]] = []
                 for col in row:
                     if col == "#":
-                        grid_row.append(0)
-                    else:
-                        grid_row.append(255)
+                        grid_row.append([0, 0, 0])
+                    elif col == " ":
+                        grid_row.append([255, 255, 255])
+                    elif col == "S":
+                        grid_row.append([0, 255, 0])
+                    elif col == "E":
+                        grid_row.append([255, 0, 0])
                 grid.append(grid_row)
 
             grid_darray = np.array(grid, dtype=np.uint8)
